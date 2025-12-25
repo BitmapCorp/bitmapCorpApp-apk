@@ -1,0 +1,35 @@
+name: Actualizar contador cada hora
+on:
+  schedule:
+    - cron: '0 * * * *'  # Cada hora
+  workflow_dispatch:     # También manual desde GitHub Actions tab
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+
+      - name: Generar counter.html
+        run: |
+          curl -s "https://api.github.com/repos/BitmapCorp/bitmapCorpApp-apk/releases" \
+            | jq -r '
+              $total = ([.[] | .assets[].download_count] | add // 0);
+              $versions = ([.[] | .assets[] | 
+                "<div>✅ \(.name) en \(.tag_name): <b>\(.download_count)</b> descargas</div>"
+              ] | join(""));
+              "<!DOCTYPE html>
+              <html><head><meta charset=utf-8><title>📊 Descargas</title></head>
+              <body style=\"font-family:sans-serif;text-align:center;margin-top:50px\">
+                <h1>📱 Bitmap Corp App</h1>
+                <p><b>Total acumulado:</b> <span style=\"font-size:2.5em;color:#28a745\">\($total)</span> descargas</p>
+                <h3>ByVersion:</h3> \($versions)
+              </body></html>"' > counter.html
+
+      - name: Subir cambios
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Actualizar contador automáticamente"
+          file_pattern: counter.html
